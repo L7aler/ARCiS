@@ -19,7 +19,7 @@
 	real*8 Pgrid(nr),Pg1(nr),Pg2(nr),yy(nr),Pmin0,Pmax0,xx,xy
 	character*500 lowkey
 	integer ipmin,ipmax,ii
-	real*8 fit_albedo0,spec_albedo(2,nobs,nlam),f_ii,d
+	real*8 fit_albedo0,spec_albedo(2,nobs,nlam),f_ii,d,scaleRk
 	real*8,allocatable :: fitted_albedo(:,:,:),Kalb(:,:),aver_albedo(:,:),refl_surface(:,:,:),Neff_fitalbedo(:)
 	real*8 alb1,alb2,Sigmoid1,Sigmoid2,amplitude
 	integer nk,cov_iter,ncov_iter,j0
@@ -84,9 +84,9 @@
 		allocate(phase3DR(0:nmodels,1:nphase,nlam))
 		allocate(var3D(0:nmodels,1:nlong,0:n_Par3D))
 	endif
-	if(useobsgrid) allocate(specobs(0:nmodels,nobs,nlam),sysobs(0:nmodels,nobs,nlam),
-     &						fitted_albedo(0:nmodels,nobs,nlam),aver_albedo(0:nmodels,nobs),
-     &						refl_surface(0:nmodels,nobs,nlam))
+	allocate(specobs(0:nmodels,nobs,nlam),sysobs(0:nmodels,nobs,nlam),
+     &				fitted_albedo(0:nmodels,nobs,nlam),aver_albedo(0:nmodels,nobs),
+     &				refl_surface(0:nmodels,nobs,nlam))
 	allocate(Neff_fitalbedo(0:nmodels))
 	if(Rp_from_interior) allocate(Rp_interior(0:nmodels))
 
@@ -369,7 +369,7 @@ c		call cpu_time(stoptime)
 		ObsSpec(iobs)%model(1:ObsSpec(iobs)%ndata)=specobs(i,iobs,1:ObsSpec(iobs)%ndata)
 	enddo
 
-	if(fullcovmat) then
+	if(fullcovmat.and.useobsgrid) then
 		cov_iter=0
 		ncov_iter=1
 13		continue
@@ -397,7 +397,7 @@ c		call cpu_time(stoptime)
 					do j=1,ObsSpec(iobs)%ndata
 						k=k+1
 						lamk(k)=ObsSpec(iobs)%lam(j)
-						Rk(k)=ObsSpec(iobs)%R(j)
+						Rk(k)=ObsSpec(iobs)%R(j)/(spec_albedo(2,iobs,j)-spec_albedo(1,iobs,j))
 						iobsk(k)=iobs
 						jk(k)=j
 						dy(k)=ObsSpec(iobs)%dy(j)
@@ -445,7 +445,7 @@ c		call cpu_time(stoptime)
 
 		if(fit_albedo) then
 			Cov_obs=Cov
-			amplitude=(fit_albedo_sigma/(1d0-surfacealbedo))**2
+			amplitude=(fit_albedo_sigma*surfacealbedo)**2
 			Kalb=0d0
 			if(fit_albedo_GP.or.fit_albedo_LS.or.fit_albedo_Matern) then
 			do j=1,nk
@@ -466,10 +466,17 @@ c		call cpu_time(stoptime)
 			enddo
 			if(fit_albedo_remove_lin) call RemoveOffsetSlope(Kalb,nk,lamk(1:nk),Rk(1:nk))
 			endif
+			if(fit_albedo_slope) then
+				scaleRk=0d0
+				d=sqrt(lam(1)*lam(nlam))
+				do j=1,nk
+					scaleRk=scaleRk+(log(lamk(j)/d)/Rk(j))**2
+				enddo
+			endif
 			do j=1,nk
 				do ii=1,nk
 					if(fit_albedo_step) then
-						amplitude=(fit_albedo_sigma_step/(1d0-surfacealbedo))**2
+						amplitude=(fit_albedo_sigma_step*surfacealbedo)**2
 						do k=1,nStep
 							d=(log(lamk(j))-log(lamStep(k)*1d-4))
 							Sigmoid1=1d0 / (1d0 + exp(-d/fit_albedo_l_step))
@@ -480,15 +487,34 @@ c		call cpu_time(stoptime)
 						enddo
 					endif
 					if(fit_albedo_slope) then
-						amplitude=(fit_albedo_sigma_slope/(1d0-surfacealbedo))**2
+						amplitude=((fit_albedo_sigma_slope*surfacealbedo)**2)/scaleRk
 						d=sqrt(lam(1)*lam(nlam))
-						Kalb(j,ii)=Kalb(j,ii)+amplitude*log(lamk(j)/d)*log(lamk(ii)/d)
+						Kalb(j,ii)=Kalb(j,ii)+amplitude*log(lamk(j)/d)*log(lamk(ii)/d)/(Rk(j)*Rk(ii))
+					endif
+					if(fit_albedo_GP3) then
+						amplitude=surfacealbedo**2
+						if(lamk(j).lt.fit_albedo_GP3_lam1*1d-4) then
+							amplitude=amplitude*fit_albedo_sigma_GP1
+						else if(lamk(j).lt.fit_albedo_GP3_lam2*1d-4) then
+							amplitude=amplitude*fit_albedo_sigma_GP2
+						else
+							amplitude=amplitude*fit_albedo_sigma_GP3
+						endif
+						if(lamk(ii).lt.fit_albedo_GP3_lam1*1d-4) then
+							amplitude=amplitude*fit_albedo_sigma_GP1
+						else if(lamk(ii).lt.fit_albedo_GP3_lam2*1d-4) then
+							amplitude=amplitude*fit_albedo_sigma_GP2
+						else
+							amplitude=amplitude*fit_albedo_sigma_GP3
+						endif
+						d=(log(lamk(j))-log(lamk(ii)))
+						Kalb(j,ii)=Kalb(j,ii)+amplitude*exp(-0.5d0*(d/fit_albedo_l)**2)
 					endif
 				enddo
 			enddo
 			do j=1,nk
 				do ii=1,nk
-					Cov(j,ii)=Cov(j,ii)+((surfacealbedo*(1d0-surfacealbedo))**2)*(1d0/(alb2-alb1)**2)*
+					Cov(j,ii)=Cov(j,ii)+(1d0/(alb2-alb1)**2)*
      &	(spec_albedo(2,iobsk(j),jk(j))-spec_albedo(1,iobsk(j),jk(j)))*(spec_albedo(2,iobsk(ii),jk(ii))-spec_albedo(1,iobsk(ii),jk(ii)))*Kalb(j,ii)
 				enddo
 			enddo
@@ -499,17 +525,17 @@ c		call cpu_time(stoptime)
 			call dpotrs('L', nk, NRHS, Cov, nk, specinv, nk, info)
 			do iobs=1,nobs
 				do j=1,ObsSpec(iobs)%ndata
-					fitted_albedo(i,iobs,j)=-log(1d0/surfacealbedo-1d0)
+					fitted_albedo(i,iobs,j)=surfacealbedo
 				enddo
 			enddo
 			do j=1,nk
 				do ii=1,nk
-					fitted_albedo(i,iobsk(j),jk(j))=fitted_albedo(i,iobsk(j),jk(j))+(surfacealbedo*(1d0-surfacealbedo))*
+					fitted_albedo(i,iobsk(j),jk(j))=fitted_albedo(i,iobsk(j),jk(j))+
      &						Kalb(j,ii)*(spec_albedo(2,iobsk(ii),jk(ii))-spec_albedo(1,iobsk(ii),jk(ii)))*specinv(ii)/(alb2-alb1)
 				enddo
 			enddo
 			do j=1,nk
-				fitted_albedo(i,iobsk(j),jk(j))=1d0/(1d0+exp(-fitted_albedo(i,iobsk(j),jk(j))))
+				fitted_albedo(i,iobsk(j),jk(j))=min(max(fitted_albedo(i,iobsk(j),jk(j)),0d0),1d0)
 				ObsSpec(iobsk(j))%model(jk(j))=spec_albedo(1,iobsk(j),jk(j))+
      &		(spec_albedo(2,iobsk(j),jk(j))-spec_albedo(1,iobsk(j),jk(j)))*(fitted_albedo(i,iobsk(j),jk(j))-alb1)/(alb2-alb1)
 			enddo
@@ -664,7 +690,7 @@ c		call cpu_time(stoptime)
 	do j=1,ncc
 		speccloudtau(i,1:nlam)=speccloudtau(i,1:nlam)+cloudtau(j,1:nlam)
 	enddo
-	if(fit_albedo) then
+	if(fit_albedo.and.useobsgrid) then
 		do iobs=1,nobs
 			if(ObsSpec(iobs)%type.eq.'emis'.or.ObsSpec(iobs)%type.eq.'emisR'.or.
      &	 ObsSpec(iobs)%type.eq.'phase'.or.ObsSpec(iobs)%type.eq.'phaseR') then
