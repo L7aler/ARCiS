@@ -645,7 +645,7 @@ c		print*,"Iteration: ",iboot,ii,i,chi2
 	real*8 xx,xy,scale,dy(ny),tot,chi2_real,chi2_virtual
 	character*100 command
 	integer info,NRHS,cov_iter,ncov_iter
-	real*8 d,f_ii,alb1,alb2,Sigmoid1,Sigmoid2,amplitude,scaleRk
+	real*8 d,f_ii,alb1,alb2,Sigmoid1,Sigmoid2,amplitude
 	real*8,allocatable :: Cov(:,:),specinv(:),lamk(:),Rk(:),Cov_obs(:,:)
 	real*8,allocatable :: spec_albedo(:,:,:),fitted_albedo(:,:),Kalb(:,:),Ksys(:,:)
 	integer,allocatable :: iobsk(:),jk(:)
@@ -840,7 +840,7 @@ c	linear
 	lnew=-global_chi2/2d0+tot
 	global_chi2=global_chi2/real(max(1,k-n_ret))
 	
-	if(fullcovmat.and.useobsgrid) then
+	if(fullcovmat) then
 		cov_iter=0
 		ncov_iter=1
 3		continue
@@ -897,7 +897,7 @@ c	linear
 					do j=1,ObsSpec(i)%ndata
 						k=k+1
 						lamk(k)=ObsSpec(i)%lam(j)
-						Rk(k)=ObsSpec(i)%R(j)/(spec_albedo(2,i,j)-spec_albedo(1,i,j))
+						Rk(k)=ObsSpec(i)%R(j)
 						iobsk(k)=i
 						jk(k)=j
 					enddo
@@ -944,7 +944,7 @@ c	linear
 
 		if(fit_albedo) then
 			Cov_obs=Cov
-			amplitude=(fit_albedo_sigma*surfacealbedo)**2
+			amplitude=(fit_albedo_sigma/(1d0-surfacealbedo))**2
 			do j=1,nk
 				do ii=1,nk
 					Kalb(j,ii)=0d0
@@ -962,17 +962,10 @@ c	linear
 				enddo
 			enddo
 			if(fit_albedo_remove_lin) call RemoveOffsetSlope(Kalb,nk,lamk(1:nk),Rk(1:nk))
-			if(fit_albedo_slope) then
-				scaleRk=0d0
-				d=sqrt(lam(1)*lam(nlam))
-				do j=1,nk
-					scaleRk=scaleRk+(log(lamk(j)/d)/Rk(j))**2
-				enddo
-			endif
 			do j=1,nk
 				do ii=1,nk
 					if(fit_albedo_step) then
-						amplitude=(fit_albedo_sigma_step*surfacealbedo)**2
+						amplitude=(fit_albedo_sigma_step/(1d0-surfacealbedo))**2
 						do k=1,nStep
 							d=(log(lamk(j))-log(lamStep(k)*1d-4))
 							Sigmoid1=1d0 / (1d0 + exp(-d/fit_albedo_l_step))
@@ -983,34 +976,15 @@ c	linear
 						enddo
 					endif
 					if(fit_albedo_slope) then
-						amplitude=((fit_albedo_sigma_slope*surfacealbedo)**2)/scaleRk
+						amplitude=(fit_albedo_sigma_slope/(1d0-surfacealbedo))**2
 						d=sqrt(lam(1)*lam(nlam))
-						Kalb(j,ii)=Kalb(j,ii)+amplitude*log(lamk(j)/d)*log(lamk(ii)/d)/(Rk(j)*Rk(ii))
-					endif
-					if(fit_albedo_GP3) then
-						amplitude=surfacealbedo**2
-						if(lamk(j).lt.fit_albedo_GP3_lam1*1d-4) then
-							amplitude=amplitude*fit_albedo_sigma_GP1
-						else if(lamk(j).lt.fit_albedo_GP3_lam2*1d-4) then
-							amplitude=amplitude*fit_albedo_sigma_GP2
-						else
-							amplitude=amplitude*fit_albedo_sigma_GP3
-						endif
-						if(lamk(ii).lt.fit_albedo_GP3_lam1*1d-4) then
-							amplitude=amplitude*fit_albedo_sigma_GP1
-						else if(lamk(ii).lt.fit_albedo_GP3_lam2*1d-4) then
-							amplitude=amplitude*fit_albedo_sigma_GP2
-						else
-							amplitude=amplitude*fit_albedo_sigma_GP3
-						endif
-						d=(log(lamk(j))-log(lamk(ii)))
-						Kalb(j,ii)=Kalb(j,ii)+amplitude*exp(-0.5d0*(d/fit_albedo_l)**2)
+						Kalb(j,ii)=Kalb(j,ii)+amplitude*log(lamk(j)/d)*log(lamk(ii)/d)
 					endif
 				enddo
 			enddo
 			do j=1,nk
 				do ii=1,nk
-					Cov(j,ii)=Cov(j,ii)+(1d0/(alb2-alb1)**2)*
+					Cov(j,ii)=Cov(j,ii)+((surfacealbedo*(1d0-surfacealbedo))**2)*(1d0/(alb2-alb1)**2)*
      &	(spec_albedo(2,iobsk(j),jk(j))-spec_albedo(1,iobsk(j),jk(j)))*(spec_albedo(2,iobsk(ii),jk(ii))-spec_albedo(1,iobsk(ii),jk(ii)))*Kalb(j,ii)
 				enddo
 			enddo
@@ -1038,15 +1012,15 @@ c	linear
 			endif
 			do i=1,nobs
 				do j=1,ObsSpec(i)%ndata
-					fitted_albedo(i,j)=surfacealbedo
+					fitted_albedo(i,j)=-log(1d0/surfacealbedo-1d0)
 				enddo
 			enddo
 			do j=1,nk
 				do ii=1,nk
-					fitted_albedo(iobsk(j),jk(j))=fitted_albedo(iobsk(j),jk(j))+
+					fitted_albedo(iobsk(j),jk(j))=fitted_albedo(iobsk(j),jk(j))+(surfacealbedo*(1d0-surfacealbedo))*
      &						Kalb(j,ii)*(spec_albedo(2,iobsk(ii),jk(ii))-spec_albedo(1,iobsk(ii),jk(ii)))*specinv(ii)/(alb2-alb1)
 				enddo
-				fitted_albedo(iobsk(j),jk(j))=min(max(fitted_albedo(iobsk(j),jk(j)),0d0),1d0)
+				fitted_albedo(iobsk(j),jk(j))=1d0/(1d0+exp(-fitted_albedo(iobsk(j),jk(j))))
 				ObsSpec(iobsk(j))%model(jk(j))=spec_albedo(1,iobsk(j),jk(j))+
      &		(spec_albedo(2,iobsk(j),jk(j))-spec_albedo(1,iobsk(j),jk(j)))*(fitted_albedo(iobsk(j),jk(j))-alb1)/(alb2-alb1)
 			enddo
@@ -1204,7 +1178,7 @@ c	linear
 		bestvar=var
 		bestchi2=global_chi2
 	endif
-	if(fullcovmat.and.useobsgrid) deallocate(lamk,Rk,iobsk,jk,spec)
+	if(fullcovmat) deallocate(lamk,Rk,iobsk,jk,spec)
 
 	deallocate(allspec)
 	
