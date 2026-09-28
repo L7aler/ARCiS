@@ -97,7 +97,7 @@ c Skip the global column header.
 	real*8 Tval,Pval,Tcheck,Pcheck,dum,tol
 	parameter(tol=1d-8)
 
-	fileH=trim(dir) // 'TABLE_H_CMS_vLS.dat'
+	fileH=trim(dir) // 'TABLE_H_CD21_vLS.dat'
 	fileHe=trim(dir) // 'TABLE_He_CMS_vLS.dat'
 	fileZ=trim(dir) // 'TABLE_AQUA_vLS.dat'
 
