@@ -12,7 +12,7 @@
 
 
 ***********************************************************************
-	subroutine init_GGchem(mol_names_in,n_mol_in,condensates)
+  subroutine init_GGchem(mol_names_in,n_mol_in,condensates)
 ***********************************************************************
       use PARAMETERS,ONLY: elements,abund_pick,model_dim,model_pconst,
      >     model_struc,model_eqcond,Npoints,useDatabase,verbose,
@@ -33,27 +33,27 @@
       use ARCiS_GGCHEM
       implicit none
       integer,parameter :: qp=selected_real_kind(33,4931)
-	integer n_mol_in,ii
-	character*10 :: mol_names_in(n_mol_in),uppername
+  integer n_mol_in,ii
+  character*10 :: mol_names_in(n_mol_in),uppername
       integer :: i,j,nr
       real(kind=qp) :: m,val,abund(74,4),eps0(NELEM),epsH,mfrac(NELEM)
        real(kind=qp) :: addH2O
-	  character(len=2) :: el
+    character(len=2) :: el
       character(len=20) :: elname
       character(len=10) :: source(4)
       character(len=200) :: line
       logical :: found,condensates
-	character*100 homedir,cread
-	character*1000 readline
-	integer iread,nread,ntot
-	character*10 extra_list(20+n_mol_in)
-	character*3 elementlist(19),elread(19)
-	parameter(elementlist = (/ "H ","He","C ","N ","O ","Na","Mg","Si","Fe","Al","Ca","Ti","S ",
-     &						   "Cl","K ","Li","P ","V ","el"/))
-	integer nelread,nextra
-	logical done(n_mol_in*2+20),checkfile
+  character*100 homedir,cread
+  character*1000 readline
+  integer iread,nread,ntot
+  character*10 extra_list(20+n_mol_in)
+  character*3 elementlist(19),elread(19)
+  parameter(elementlist = (/ "H ","He","C ","N ","O ","Na","Mg","Si","Fe","Al","Ca","Ti","S ",
+     &               "Cl","K ","Li","P ","V ","el"/))
+  integer nelread,nextra
+  logical done(n_mol_in*2+20),checkfile
 
-	call getenv('HOME',homedir) 
+  call getenv('HOME',homedir) 
 
       !-------------------------
       ! ***  default values  ***
@@ -304,35 +304,37 @@
       call INIT_CHEMISTRY
       if(condensates) call INIT_DUSTCHEM
 
-	if(.not.allocated(linkmol)) then
-		allocate(linkmol(n_mol_in))
-		allocate(linkele(n_mol_in))
-		linkmol=0
-		linkele=0
-		do j=1,n_mol_in
-			call To_upper_ARCiS(mol_names_in(j),uppername)
-			if(uppername.eq.'OCS') uppername='COS'
-			do i=1,NMOLE
-				if(uppername.eq.cmol(i)) then
-					linkmol(j)=i
-				endif
-			enddo
-			do i=1,NELEM
-				if(mol_names_in(j).eq.elnam(i)) then
-					linkele(j)=i
-				endif
-			enddo
-		enddo
-	endif
+  if(.not.allocated(linkmol)) then
+    allocate(linkmol(n_mol_in))
+    allocate(linkele(n_mol_in))
+    linkmol=0
+    linkele=0
+    do j=1,n_mol_in
+      call To_upper_ARCiS(mol_names_in(j),uppername)
+      if(uppername.eq.'OCS') uppername='COS'
+      if(uppername.eq.'SH') uppername='HS'
+      if(uppername.eq.'NS') uppername='SN'
+      do i=1,NMOLE
+        if(uppername.eq.cmol(i)) then
+          linkmol(j)=i
+        endif
+      enddo
+      do i=1,NELEM
+        if(mol_names_in(j).eq.elnam(i)) then
+          linkele(j)=i
+        endif
+      enddo
+    enddo
+  endif
 
-	return
-	end
+  return
+  end
 
 
 
 ***********************************************************************
-	subroutine call_GGchem(Tin,Pin,atom_names_in,atom_abuns_in,n_atom_in,mol_names_in,mol_abuns_in,n_mol_in,
-     >							MMW,condensates,atom_abuns_out,imethod,x_el)
+  subroutine call_GGchem(Tin,Pin,atom_names_in,atom_abuns_in,n_atom_in,mol_names_in,mol_abuns_in,n_mol_in,
+     >              MMW,condensates,atom_abuns_out,imethod,x_el)
 ***********************************************************************
       use PARAMETERS,ONLY: elements,abund_pick,model_dim,model_pconst,
      >                     model_struc,model_eqcond,Npoints,useDatabase,
@@ -351,10 +353,10 @@
       use ARCiS_GGCHEM
       use STRUCTURE,ONLY: pelec
       implicit none
-	integer :: n_atom_in,n_mol_in,verbose,i,j,imethod
-	real*8 :: Tin,Pin,atom_abuns_in(n_atom_in),mol_abuns_in(n_mol_in),MMW,atom_abuns_out(n_atom_in),x_el
-	character*40 :: atom_names_in(n_atom_in)
-	character*10 :: mol_names_in(n_mol_in),uppername,elnam_UPPER
+  integer :: n_atom_in,n_mol_in,verbose,i,j,imethod
+  real*8 :: Tin,Pin,atom_abuns_in(n_atom_in),mol_abuns_in(n_mol_in),MMW,atom_abuns_out(n_atom_in),x_el
+  character*40 :: atom_names_in(n_atom_in)
+  character*10 :: mol_names_in(n_mol_in),uppername,elnam_UPPER
 
       integer,parameter :: qp = selected_real_kind ( 33, 4931 )
       real*8 :: p,rhog,rhod,dustV,nges,mges,kT,pges,mu
@@ -362,20 +364,20 @@
       integer :: it
 
       real(kind=qp) :: eps(NELEM),Sat(NDUST),eldust(NDUST),tot
-	logical condensates,merk
+  logical condensates,merk
 
-	NewPreMethod=imethod
+  NewPreMethod=imethod
 
-	model_eqcond=condensates
-	eps=1q-50
-	do i=1,n_atom_in
-		do j=1,NELEM
-			if(trim(elnam(j)).eq.trim(atom_names_in(i))) then
-				eps(j)=atom_abuns_in(i)
-			endif
-		enddo
-	enddo
-	eps0(1:NELEM)=eps(1:NELEM)
+  model_eqcond=condensates
+  eps=1q-50
+  do i=1,n_atom_in
+    do j=1,NELEM
+      if(trim(elnam(j)).eq.trim(atom_names_in(i))) then
+        eps(j)=atom_abuns_in(i)
+      endif
+    enddo
+  enddo
+  eps0(1:NELEM)=eps(1:NELEM)
 
       muH = 0.d0
       do i=1,NELEM
@@ -388,14 +390,14 @@ c     &            elnam(i),12.d0+LOG10(eps(i)),eps(i),mass(i)/amu
 c      write(*,'("rho = n<H> *",1pE12.4," amu")') muH/amu
 c      write(*,'("C/O =",0pF6.3)') eps(C)/eps(O)
         eldust = 0.Q0
-	mu=muH
+  mu=muH
 
-	Tg=Tin
-	p=Pin*bar
-	nHges = p*mu/(bk*Tg)/muH
+  Tg=Tin
+  p=Pin*bar
+  nHges = p*mu/(bk*Tg)/muH
 
-	verbose=-1
-	merk=.false.
+  verbose=-1
+  merk=.false.
 
       eldust = 0.Q0
 
@@ -430,147 +432,148 @@ c      write(*,'("C/O =",0pF6.3)') eps(C)/eps(O)
             else
               mu = nHges/pgas*(bk*Tg)*muH
             endif  
-		  else
-			dmu=0d0
+      else
+      dmu=0d0
           endif
           fold = ff
 c          print '("p-it=",i3,"  mu=",2(1pE20.12))',it,mu/amu,dmu/mu
-		if (.not.ABS(dmu/mu).gt.1.E-10) exit
+    if (.not.ABS(dmu/mu).gt.1.E-10) exit
         enddo  
 
-	if(condensates) then
-		atom_abuns_out=1d-50
-		do i=1,n_atom_in
-			do j=1,NELEM
-				if(trim(elnam(j)).eq.trim(atom_names_in(i))) then
-					atom_abuns_out(i)=eps(j)
-				endif
-			enddo
-		enddo
-	endif
+  if(condensates) then
+    atom_abuns_out=1d-50
+    do i=1,n_atom_in
+      do j=1,NELEM
+        if(trim(elnam(j)).eq.trim(atom_names_in(i))) then
+          atom_abuns_out(i)=eps(j)
+        endif
+      enddo
+    enddo
+  endif
 
-	tot=sum(nmol(1:NMOLE))+sum(nat(1:NELEM))+nel
+  tot=sum(nmol(1:NMOLE))+sum(nat(1:NELEM))+nel
 
-	if(.not.tot.gt.0d0) then
-		mol_abuns_in=0d0
-		MMW=1d0
-		x_el=0d0
-	else
-		mol_abuns_in=0d0
-		do j=1,n_mol_in
-			i=linkmol(j)
-			if(i.ne.0) then
-				mol_abuns_in(j)=nmol(i)/tot
-			endif
-			i=linkele(j)
-			if(i.ne.0) then
-				mol_abuns_in(j)=nat(i)/tot
-			endif
-		enddo
-	
-		MMW=0d0
-		do i=1,NMOLE
-			MMW=MMW+nmol(i)*mmol(i)/tot
-		enddo
-		do i=1,NELEM
-			MMW=MMW+nat(i)*mass(i)/tot
-		enddo
-		MMW=MMW/amu
-		x_el=nel/tot
-	endif
+  if(.not.tot.gt.0d0) then
+    mol_abuns_in=0d0
+    MMW=1d0
+    x_el=0d0
+  else
+    mol_abuns_in=0d0
+    do j=1,n_mol_in
+      i=linkmol(j)
+      if(i.ne.0) then
+        mol_abuns_in(j)=nmol(i)/tot
+      endif
+      i=linkele(j)
+      if(i.ne.0) then
+        mol_abuns_in(j)=nat(i)/tot
+      endif
+    enddo
+  
+    MMW=0d0
+    do i=1,NMOLE
+      MMW=MMW+nmol(i)*mmol(i)/tot
+    enddo
+    do i=1,NELEM
+      MMW=MMW+nat(i)*mass(i)/tot
+    enddo
+    MMW=MMW/amu
+    x_el=nel/tot
+  endif
 
-	imethod=2
-	
+  imethod=2
+  
       end
 
-	subroutine To_upper_ARCiS(strin,strout)
-	character(*) :: strin,strout
-	integer :: i
+  subroutine To_upper_ARCiS(strin,strout)
+  character(*) :: strin,strout
+  integer :: i
 
-	strout = strin
-	do i = 1, len_trim(strout)
-		select case(strout(i:i))
-			case("a":"z")
-				strout(i:i) = achar(iachar(strout(i:i))-32)
-		end select
-	end do
-	return
-	end
+  strout = strin
+  do i = 1, len_trim(strout)
+    select case(strout(i:i))
+      case("a":"z")
+        strout(i:i) = achar(iachar(strout(i:i))-32)
+    end select
+  end do
+  return
+  end
 
 
-	subroutine call_SuperSat_ARCiS(Tg)
-	use CloudModule
-	use AtomsModule
-	use EXCHANGE,ONLY: nat,nmol
-	use DUST_DATA,ONLY: NDUST,dust_nam
-	implicit none
-	integer,parameter :: qp = selected_real_kind ( 33, 4931 )
-	real(kind=qp) :: Sat(NDUST)
-	integer i,j,l
-	real*8 :: Tg
-	
-	nCS=10
-	if(.not.allocated(SatRat)) then
-		allocate(SatRat(nCS))
-		allocate(ATP(nCS))
-		allocate(BTP(nCS))
-		allocate(rhodust(nCS))
-		allocate(atoms_cloud(nCS,N_atoms))
-		allocate(maxT(nCS))
-		allocate(xv_bot(nCS))
-		allocate(mu(nCS))
-		allocate(CSname(nCS))
-		allocate(CSnmol(nCS))
-		allocate(ice(nCS))
+  subroutine call_SuperSat_ARCiS(Tg)
+  use CloudModule
+  use AtomsModule
+  use EXCHANGE,ONLY: nat,nmol
+  use DUST_DATA,ONLY: NDUST,dust_nam
+  implicit none
+  integer,parameter :: qp = selected_real_kind ( 33, 4931 )
+  real(kind=qp) :: Sat(NDUST)
+  integer i,j,l
+  real*8 :: Tg
+  
+  nCS=10
+  if(.not.allocated(SatRat)) then
+    allocate(SatRat(nCS))
+    allocate(ATP(nCS))
+    allocate(BTP(nCS))
+    allocate(rhodust(nCS))
+    allocate(atoms_cloud(nCS,N_atoms))
+    allocate(maxT(nCS))
+    allocate(xv_bot(nCS))
+    allocate(mu(nCS))
+    allocate(CSname(nCS))
+    allocate(CSnmol(nCS))
+    allocate(ice(nCS))
 
-		i=0
+    i=0
 c TiO2
-		i=i+1
-		CSname(i)='TiO2'
+    i=i+1
+    CSname(i)='TiO2'
 c VO
-		i=i+1
-		CSname(i)='VO'
+    i=i+1
+    CSname(i)='VO'
 c Al2O3
-		i=i+1
-		CSname(i)='Al2O3'
+    i=i+1
+    CSname(i)='Al2O3'
 c SiO2
-		i=i+1
-		CSname(i)='SiO2'
+    i=i+1
+    CSname(i)='SiO2'
 c Silicates
-		i=i+1
-		CSname(i)='MgSiO3'
+    i=i+1
+    CSname(i)='MgSiO3'
 c H2O
-		i=i+1
-		CSname(i)='H2O'
+    i=i+1
+    CSname(i)='H2O'
 c Fe
-		i=i+1
-		CSname(i)='Fe'
+    i=i+1
+    CSname(i)='Fe'
 c FeS
-		i=i+1
-		CSname(i)='FeS'
+    i=i+1
+    CSname(i)='FeS'
 c C
-		i=i+1
-		CSname(i)='C'
+    i=i+1
+    CSname(i)='C'
 c SiC
-		i=i+1
-		CSname(i)='SiC'
+    i=i+1
+    CSname(i)='SiC'
 
-		nCS=i
-	endif
+    nCS=i
+  endif
 
 
-	call SUPERSAT(Tg,nat,nmol,Sat)
-	SatRat(1:nCS)=1d-100
-	do j=1,nCS
-		l=len_trim(CSname(j))
-		do i=1,NDUST
-			if(CSname(j)(1:l).eq.dust_nam(i)(1:l)) then
-				if(Sat(i).gt.SatRat(j)) SatRat(j)=Sat(i)
-			endif
-		enddo
-		write(*,'(a10,se20.4)') CSname(j),SatRat(j)
-	enddo
+  call SUPERSAT(Tg,nat,nmol,Sat)
+  SatRat(1:nCS)=1d-100
+  do j=1,nCS
+    l=len_trim(CSname(j))
+    do i=1,NDUST
+      if(CSname(j)(1:l).eq.dust_nam(i)(1:l)) then
+        if(Sat(i).gt.SatRat(j)) SatRat(j)=Sat(i)
+      endif
+    enddo
+    write(*,'(a10,se20.4)') CSname(j),SatRat(j)
+  enddo
 
-	return
-	end
+  return
+  end
+
 
