@@ -12,7 +12,7 @@
 
 
 ***********************************************************************
-	subroutine init_GGchem(mol_names_in,n_mol_in,condensates,use_mol_in)
+	subroutine init_GGchem(mol_names_in,n_mol_in,condensates)
 ***********************************************************************
       use PARAMETERS,ONLY: elements,abund_pick,model_dim,model_pconst,
      >     model_struc,model_eqcond,Npoints,useDatabase,verbose,
@@ -35,7 +35,6 @@
       integer,parameter :: qp=selected_real_kind(33,4931)
 	integer n_mol_in,ii
 	character*10 :: mol_names_in(n_mol_in),uppername
-	logical :: use_mol_in(n_mol_in)
       integer :: i,j,nr
       real(kind=qp) :: m,val,abund(74,4),eps0(NELEM),epsH,mfrac(NELEM)
        real(kind=qp) :: addH2O
@@ -313,8 +312,6 @@
 		do j=1,n_mol_in
 			call To_upper_ARCiS(mol_names_in(j),uppername)
 			if(uppername.eq.'OCS') uppername='COS'
-			if(uppername.eq.'SH') uppername='HS'
-			if(uppername.eq.'NS') uppername='SN'
 			do i=1,NMOLE
 				if(uppername.eq.cmol(i)) then
 					linkmol(j)=i
@@ -325,9 +322,6 @@
 					linkele(j)=i
 				endif
 			enddo
-			if(linkmol(j).eq.0.and.linkele(j).eq.0.and.use_mol_in(j)) then
-				print*,'WARNING: Molecule not found in GGchem: ' // trim(mol_names_in(j))
-			endif
 		enddo
 	endif
 
