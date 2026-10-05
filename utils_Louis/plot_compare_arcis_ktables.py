@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """Plot and validate two ARCiS correlated-k tables at a chosen P and T."""
 
+
+'''
+Example for how to execute the code:
+
+python /Users/louissiebenaler/ARCiS/src/utils_Louis/plot_compare_arcis_ktables.py \
+    /Users/louissiebenaler/ARCiS/Data/Opacities/opacity_Fe_Louis.fits \
+    /Users/louissiebenaler/Downloads/opacity_Fe.fits \
+    --temperature 1000 \
+    --pressure 1e-4 \
+    --output tmp.png \
+    --show
+
+
+
+'''
+
 from __future__ import annotations
 
 import argparse

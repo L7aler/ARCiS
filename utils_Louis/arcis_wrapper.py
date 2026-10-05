@@ -35,7 +35,7 @@ class ArcisWrapper:
         if self.input_file is not None:
             if not Path(self.input_file).exists() :
                 print(f"Warning: Input file {self.input_file} does not exist. Let's just copy over the default one wrapper_test.dat.")
-                source = Path('./src/Example/wrapper_test.dat')
+                source = Path('../src/Example/wrapper_test.dat')
                 target = Path(self.input_file)
                 copy(source, target)
 
@@ -101,6 +101,7 @@ class ArcisWrapper:
             + env.get("DYLD_LIBRARY_PATH", "")
         )
 
+    
         subprocess.run(cmd, check = True, env = env)
         
 
@@ -251,9 +252,13 @@ class ArcisWrapper:
     def define_radius(self, Mp, logg):
         ''' This function defines the radius of the planet based on the mass (given in Jupiter masses) and logg (given in log10(g) in cgs). It returns the radius in Jupiter radii'''
         g = 10**logg
-        Mjup = 1.89816e30 # g
-        Rjup = 7.1492e9 # cm
-        G = 6.67430e-8 # cm^3 g^-1 s
+        #Mjup = 1.89816e30 # g
+        #Rjup = 7.1492e9 # cm
+        #G = 6.67430e-8 # cm^3 g^-1 s
+        #actual values used by ARCiS internally
+        G = 6.6740831e-8
+        Mjup  = 1.898e30
+        Rjup  = 6.9911e9
         R = np.sqrt(G * Mp * Mjup / g) / Rjup
         return R
 
@@ -304,10 +309,10 @@ class ArcisWrapper:
 if __name__ == "__main__":
     print("Hello, World!")
     
-    '''
+    #'''
     tint = 1000
     a = 5
-    clouds = [True]
+    clouds = [False]
     Tint = 900
     Res = [10]
 
@@ -315,28 +320,28 @@ if __name__ == "__main__":
         for res in Res:
             if c:
                 #case = ArcisWrapper(input_file = '/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/wrapper_test_clouds.dat', output_path = f'/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/Tint_{Tint}_clouds_specresLR{res}_1e-2/')
-                case = ArcisWrapper(input_file = '/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/wrapper_test_clouds_Sonora_tmp.dat', output_path = f'/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/test_clouds_Sonora_og/')
+                case = ArcisWrapper(input_file = '/Users/louissiebenaler/ARCiS/src/Example/wrapper_test_clouds_Sonora_tmp.dat', output_path = f'/Users/louissiebenaler/ARCiS/src/Example/test_clouds_Sonora_og/')
                 case.set("cloud1:coverage", 1.0)
                 case.set("condensates", False)
             else:
-                case = ArcisWrapper(input_file = '/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/wrapper_test_gas.dat', output_path = f'/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/test_gas_Sonora/')
+                case = ArcisWrapper(input_file = '/Users/louissiebenaler/ARCiS/src/Example/test_gas_petitCode/input_test.dat', output_path = f'/Users/louissiebenaler/ARCiS/src/Example/checkPetit_code_test_CIA_bug/')
                 case.set("condensates", True)
 
             
-            case.set("TeffP", Tint)
-            case.set("specres_LR", res)
-            case.set("Dplanet", 200)
-            case.set("metallicity", 0.0)
-            R = case.define_radius(1, 3.5)
-            case.set("Rp", R)
+            #case.set("TeffP", Tint)
+            #case.set("specres_LR", res)
+            #case.set("Dplanet", 200)
+            #case.set("metallicity", 0.0)
+            #R = case.define_radius(1, 3.5)
+            #case.set("Rp", R)
             
 
-            case.write_input()
+            #case.write_input()
 
 
             case.run_arcis()
         
-    '''
+    #'''
     
 
     '''
@@ -399,7 +404,7 @@ if __name__ == "__main__":
 
 
     
-    #'''
+    '''
     input_file = '/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/wrapper_test_clouds.dat'
     output_dir = f'/Users/louissiebenaler/ARCiS/ARCIS_2026/src/Example/test_pyArcis/'
 
@@ -449,7 +454,7 @@ if __name__ == "__main__":
 
         # Save all files generated for this run.
         shutil.copytree(output_dir, run_dir)
-    #'''
+    '''
     
     
 
